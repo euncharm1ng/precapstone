@@ -42,9 +42,8 @@ void* pthread_mutex_unlock(pthread_mutex_t * m){
 
     if(dlerror() != NULL)
         exit(1);
-    printf("UNLOCK --- %p\n", m);
     pid = selfp();
-    printf("LOCK --- %p, %p\n", m, pid);
+    printf("UNLOCK --- %p, %p\n", m, pid);
     
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
     for(int i =0; i < sizeof(unlock);)
