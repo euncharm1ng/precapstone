@@ -4,10 +4,13 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
-//1 lock, 0 unlock
+
+typedef struct Node{
+    Node* pathsTo;
+
+}Node;
 
 void main(){
-
     if (mkfifo(".ddtrace", 0666)) {
 		if (errno != EEXIST) {
 			perror("fail to open fifo: ") ;
@@ -17,21 +20,27 @@ void main(){
     int fd = open(".ddtrace", O_RDONLY | O_SYNC);
 
     while(1){
-        pthread_mutex_t* m;
-        pthread_t *pid;
-        int len =0, prochk;
+        pthread_mutex_t* m=NULL;
+        pthread_t *pid = NULL;
+        int len =0, protocol=0; //1 lock, 0 unlock
         printf("====\n");
-        if((len = read(fd, &prochk, 4)) == -1) break;
-        else if(len > 0)
-            printf("=%d\n", prochk);
+        if((len = read(fd, &protocol, 4)) == -1) break;
+        else if(len > 0){
+            printf("=%d, %d\n", len, protocol);
+            len = 0;
+        }
 
         if((len = read(fd, &pid, 8)) == -1) break;
-        else if(len > 0)
-            printf("-%p\n", pid);
+        else if(len > 0){
+            printf("-%d, %p\n", len, pid);
+            len = 0;
+        }
 
         if((len = read(fd, &m, 8)) == -1) break;
-        else if(len > 0)
-            printf("-%p\n", m);
+        else if(len > 0){
+            printf("-%d, %p\n", len, m);
+            len = 0;
+        }
     }
 
     close(fd);
