@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 void* pthread_mutex_lock(pthread_mutex_t * m){
     int lock = 1;
@@ -16,24 +17,21 @@ void* pthread_mutex_lock(pthread_mutex_t * m){
     if(dlerror() != NULL)
         exit(1);
     pid = selfp();
-    printf("LOCK --- %p, %p\n", m, pid);
+    // printf("LOCK --- %p, %p\n", pid, m);
     
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
-    for(int i =0; i < sizeof(lock);)
-        i += write(fd, ((char*)&lock) + i, sizeof(lock)-i);
-
-    for(int i =0; i < sizeof(pid);)
-        i += write(fd, ((char*)&pid) + i, sizeof(pid) -i);
-
-    for(int i =0; i < sizeof(m);)
-        i += write(fd, ((char*)&m) + i, sizeof(m) -i);
-
+    
+    char msg[20];
+    memcpy(msg, (char*)&lock, 4);
+    memcpy(msg+4, (char*)&pid, 8);
+    memcpy(msg+12, (char*)&m, 8);
+    for(int i =0; i < 20;) i += write(fd, msg + i, 20-i);
 
     lockp(m);
 }
 
 void* pthread_mutex_unlock(pthread_mutex_t * m){
-    int unlock = 1;
+    int unlock = 0;
     pthread_t* pid;
     void* (*unlockp)(pthread_mutex_t * m);
     void* (*selfp)();
@@ -43,18 +41,15 @@ void* pthread_mutex_unlock(pthread_mutex_t * m){
     if(dlerror() != NULL)
         exit(1);
     pid = selfp();
-    printf("UNLOCK --- %p, %p\n", m, pid);
-    
+    // printf("UNLOCK --- %p, %p\n", pid, m);
+
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
-    for(int i =0; i < sizeof(unlock);)
-        i += write(fd, ((char*)&unlock) + i, sizeof(unlock)-i);
 
-    for(int i =0; i < sizeof(pid);)
-        i += write(fd, ((char*)&pid) + i, sizeof(pid) -i);
-        
-    for(int i =0; i < sizeof(m);)
-        i += write(fd, ((char*)&m) + i, sizeof(m) -i);
-
+    char msg[20];
+    memcpy(msg, (char*)&unlock, 4);
+    memcpy(msg+4, (char*)&pid, 8);
+    memcpy(msg+12, (char*)&m, 8);
+    for(int i =0; i < 20;) i += write(fd, msg + i, 20-i);
 
     unlockp(m);
 }
