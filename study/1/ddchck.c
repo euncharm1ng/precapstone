@@ -59,7 +59,7 @@ pThread gChkThreadExist(pGraph g, pthread_t* pid){
     return NULL;
 }
 void gPrintNodes(pGraph g){
-    printf("\tprintNodes:\n");
+    printf("printNodes():\n");
     for(int i =0; i< g->nodesCnt; i++){
         printf("\tnode: %p:\n\t\t", g->nodes[i]);
         for(int j =0; j < g->nodes[i]->pathsCnt; j++){
@@ -110,6 +110,7 @@ pNode createNode(pthread_mutex_t* m){
 }
 void nAddPath(pNode src, pNode dest){
     src->pathsCnt++;
+    printf("\tnAddPath(): %p adding: %p\n", src, dest);
     src->paths = (pNode*)realloc(src->paths, sizeof(pNode) * src->pathsCnt);
     src->paths[src->pathsCnt-1] = dest;
 }
@@ -190,7 +191,7 @@ int i =0;
                 printf("LOCKED\n");
                 pNode nodeToAdd = NULL;
                 pThread currThread = NULL;
-                printf("%d --- pid: %p m: %p \n", protocol, pid, m);
+                printf("%d --- pid: %p m: %p \n", i, pid, m);
                 if ((nodeToAdd = gChkNodeExist(g, m)) == NULL){
                     nodeToAdd = createNode(m);
                     gAddNode(g, nodeToAdd);
@@ -205,12 +206,11 @@ int i =0;
                 gPrintNodes(g);
                 gPrintThread(g);
                 if(chkCycle(g)) printf("CYLCE!\n");
-                
                 printf("\n");
             }
             else if(protocol == 0){
                 printf("UNLOCKED\n");
-                printf("%d --- pid: %p m: %p \n", protocol, pid, m);
+                printf("%d --- pid: %p m: %p \n", i, pid, m);
                 pNode target = NULL;
                 pThread currThread = NULL;
                 currThread = gChkThreadExist(g, pid);
@@ -220,13 +220,15 @@ int i =0;
                 
                 gPrintNodes(g);
                 gPrintThread(g);
-                if(chkCycle(g)) printf("CYLCE!\n");
+                if(chkCycle(g)) printf("CYCLE!\n");
+                printf("\n");
             }
             else{
                 printf("PIPE ERROR!\n");
                 exit(1);
             }
-            printf("====%d==============================\n\n", i++);
+            printf("==================================\n\n");
+            i++;
         }
     }
 

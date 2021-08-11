@@ -12,7 +12,8 @@ void add1(){
 }
 
 void *mythr1(){
-    for(int i =0; i< 10; i++){
+    sleep(0.001);
+    for(int i =0; i< 100; i++){
         pthread_mutex_lock(&m1);
         pthread_mutex_lock(&m2);
         printf("mythr1 - %d\n", i);
@@ -23,7 +24,8 @@ void *mythr1(){
 }
 
 void *mythr2(){
-    for(int i =0; i< 10; i++){
+    sleep(0.0005);
+    for(int i =0; i< 100; i++){
         pthread_mutex_lock(&m2);
         pthread_mutex_lock(&m1);
         printf("mythr2 - %d\n", i);

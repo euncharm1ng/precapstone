@@ -27,28 +27,28 @@ smoker_func (void * arg)
             if (i == *own)
                 continue ;
             pthread_mutex_lock(&item_lock[i]) ;
-                pthread_mutex_lock(&stdio_lock) ;
-                    printf("smoker with %s needs %s.\n", s[*own], s[i]) ;
-                pthread_mutex_unlock(&stdio_lock) ;
-                while (!item[i])
-                    pthread_cond_wait(&item_cond[i], &item_lock[i]) ;
-                --item[i] ;
-                pthread_mutex_lock(&stdio_lock) ;
-                    printf("smoker with %s acquired %s.\n", s[*own], s[i]) ;
-                pthread_mutex_unlock(&stdio_lock) ;
+            // pthread_mutex_lock(&stdio_lock) ;
+            // printf("smoker with %s needs %s.\n", s[*own], s[i]) ;
+            // pthread_mutex_unlock(&stdio_lock) ;
+            while (!item[i])
+                pthread_cond_wait(&item_cond[i], &item_lock[i]) ;
+            --item[i] ;
+            // pthread_mutex_lock(&stdio_lock) ;
+            // printf("smoker with %s acquired %s.\n", s[*own], s[i]) ;
+            // pthread_mutex_unlock(&stdio_lock) ;
             pthread_mutex_unlock(&item_lock[i]) ;
         }
-        pthread_mutex_lock(&stdio_lock) ;
-            printf("smoker with %s is smoking.\n", s[*own]) ;
-        pthread_mutex_unlock(&stdio_lock) ;
+        // pthread_mutex_lock(&stdio_lock) ;
+        // printf("smoker with %s is smoking.\n", s[*own]) ;
+        // pthread_mutex_unlock(&stdio_lock) ;
         sleep(3) ;
-        pthread_mutex_lock(&stdio_lock) ;
-            printf("smoker with %s is done smoking.\n", s[*own]) ;
-        pthread_mutex_unlock(&stdio_lock) ;
+        // pthread_mutex_lock(&stdio_lock) ;
+        // printf("smoker with %s is done smoking.\n", s[*own]) ;
+        // pthread_mutex_unlock(&stdio_lock) ;
 
         pthread_mutex_unlock(&agent_lock) ;
-            ++agent ;
-            pthread_cond_signal(&agent_cond) ;
+        ++agent ;
+        pthread_cond_signal(&agent_cond) ;
         pthread_mutex_unlock(&agent_lock) ;
     }
 }
@@ -57,7 +57,7 @@ int
 main ()
 {
     // initializing locks, conditional variables
-    pthread_mutex_init(&stdio_lock, 0x0) ;
+    // pthread_mutex_init(&stdio_lock, 0x0) ;
     pthread_mutex_init(&agent_lock, 0x0) ;
     pthread_cond_init(&agent_cond, 0x0) ;
     for (int i = 0; i < 3; i++) {
@@ -74,25 +74,25 @@ main ()
     // agent loop
     while (1) {
         int num = rand() % 3 ;
-        pthread_mutex_lock(&stdio_lock) ;
-            printf("This round without %s.\n", s[num]) ;
-        pthread_mutex_unlock(&stdio_lock) ;
+        // pthread_mutex_lock(&stdio_lock) ;
+        // printf("This round without %s.\n", s[num]) ;
+        // pthread_mutex_unlock(&stdio_lock) ;
 
         for (int i = 0; i < 3; i++) {
             if (i == num) 
                 continue ;
             pthread_mutex_lock(&item_lock[i]) ;
-                ++item[i] ;
-                pthread_cond_signal(&item_cond[i]) ;
+            ++item[i] ;
+            pthread_cond_signal(&item_cond[i]) ;
             pthread_mutex_unlock(&item_lock[i]) ;
         }
         pthread_mutex_lock(&agent_lock) ;
-            while (!agent)
-                pthread_cond_wait(&agent_cond, &agent_lock) ;
-            pthread_mutex_lock(&stdio_lock) ;
-                printf("----------------------------\n") ;
-            pthread_mutex_unlock(&stdio_lock) ;
-            --agent ;
+        while (!agent)
+            pthread_cond_wait(&agent_cond, &agent_lock) ;
+        // pthread_mutex_lock(&stdio_lock) ;
+        // printf("----------------------------\n") ;
+        // pthread_mutex_unlock(&stdio_lock) ;
+        --agent ;
         pthread_mutex_unlock(&agent_lock) ;
     }
 

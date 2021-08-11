@@ -17,7 +17,7 @@ void* pthread_mutex_lock(pthread_mutex_t * m){
     if(dlerror() != NULL)
         exit(1);
     pid = selfp();
-    // printf("LOCK --- %p, %p\n", pid, m);
+    printf("LOCK --- %p, %p\n", pid, m);
     
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
     
@@ -41,7 +41,7 @@ void* pthread_mutex_unlock(pthread_mutex_t * m){
     if(dlerror() != NULL)
         exit(1);
     pid = selfp();
-    // printf("UNLOCK --- %p, %p\n", pid, m);
+    printf("UNLK --- %p, %p\n", pid, m);
 
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
 
