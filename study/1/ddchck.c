@@ -4,6 +4,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <string.h>
+#include <execinfo.h>
+
+#define RED "\033[31m"
+#define NORM "\033[37m"
 
 typedef struct Node{
     pthread_mutex_t *mutex;
@@ -68,7 +73,6 @@ void gPrintNodes(pGraph g){
         printf("\n");
     }
 }
-
 void gPrintThread(pGraph g){
     printf("printThread():\n");
     for(int i =0; i< g->threadsCnt; i++){
@@ -79,7 +83,19 @@ void gPrintThread(pGraph g){
         printf("\n");
     }
 }
-
+void freeGraph(pGraph g){
+    for(int i =0; i< g->nodesCnt; i++){
+        free(g->nodes[i]->paths);
+        free(g->nodes[i]);
+    }
+    for(int i =0; i< g->threadsCnt; i++){
+        free(g->threads[i]->holds);
+        free(g->threads[i]);
+    }
+    free(g->nodes);
+    free(g->threads);
+    free(g);
+}
 
 int chkCycleRecur(pNode currNode){
     if(currNode->chker == 1) return 1; //found cycle
@@ -167,8 +183,6 @@ void tDelNode(pThread t, pNode toDel){
     }
 }
 
-
-
 void main(){
     if (mkfifo(".ddtrace", 0666)) {
 		if (errno != EEXIST) {
@@ -182,10 +196,14 @@ int i =0;
     while(1){
         pthread_mutex_t* m=NULL;
         pthread_t *pid = NULL;
-        int len =0, protocol=0; //1 lock, 0 unlock
+        int len =0, protocol=0, addrLen=0; //protocol:1 lock, 0 unlock
+        char addr[30];
         if((len = read(fd, &protocol, 4)) == -1) break;
         if((len = read(fd, &pid, 8)) == -1) break;
         if((len = read(fd, &m, 8)) == -1) break;
+        if((len = read(fd, &addrLen, 4)) == -1) break;
+        if((len = read(fd, &addr, addrLen)) == -1) break;
+        printf("%d -- %s\n", addrLen, addr);
         if(len>0){
             if(protocol == 1){
                 printf("LOCKED\n");
@@ -205,7 +223,28 @@ int i =0;
                 
                 gPrintNodes(g);
                 gPrintThread(g);
-                if(chkCycle(g)) printf("CYLCE!\n");
+                if(chkCycle(g)){
+                    printf(RED"-----CYLCE!-----\n"NORM);
+                    char line[1024];
+
+                    for(int i =0; i< addrLen; i++){
+                        if(addr[i] == '(')
+                            addr[i] = ' ';
+                    }
+
+                    char addr2line[50] = "addr2line -e";
+                    strcat(addr2line, addr);
+                    FILE *fp =NULL;
+                    if((fp = popen(addr2line, "r")) == NULL){
+                        printf("poen error\n");
+                    }else{
+                        fgets(line, 1024, fp);
+                        printf("%s\n", line);
+                    }
+                    pclose(fp);
+                    freeGraph(g);
+                    exit(0);
+                }
                 printf("\n");
             }
             else if(protocol == 0){
