@@ -20,8 +20,8 @@ void get_trace (char* addr){
     {
         // printf ("Obtained %d stack frames.\n", size);
         // printf("3333====%ld --  %s\n",strlen(strings[3]), strings[3]);
-            // for (i = 0; i < size; i++)
-            //   printf ("%s\n", strings[i]);
+        //     for (i = 0; i < size; i++)
+        //       printf ("%s\n", strings[i]);
           
         for(int i =0; i< strlen(strings[3]); i++){
             if(strings[3][i]==')'){

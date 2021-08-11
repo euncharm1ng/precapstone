@@ -203,8 +203,12 @@ int i =0;
         if((len = read(fd, &m, 8)) == -1) break;
         if((len = read(fd, &addrLen, 4)) == -1) break;
         if((len = read(fd, &addr, addrLen)) == -1) break;
-        printf("%d -- %s\n", addrLen, addr);
-        if(len>0){
+        if(len == 0){
+            close(fd);
+            int fd = open(".ddtrace", O_RDONLY | O_SYNC);
+            g = createGraph();
+        }
+        else if(len>0){
             if(protocol == 1){
                 printf("LOCKED\n");
                 pNode nodeToAdd = NULL;
@@ -225,6 +229,7 @@ int i =0;
                 gPrintThread(g);
                 if(chkCycle(g)){
                     printf(RED"-----CYLCE!-----\n"NORM);
+                    // printf("%s\n", addr);
                     char line[1024];
 
                     for(int i =0; i< addrLen; i++){
@@ -236,13 +241,14 @@ int i =0;
                     strcat(addr2line, addr);
                     FILE *fp =NULL;
                     if((fp = popen(addr2line, "r")) == NULL){
-                        printf("poen error\n");
+                        printf("popen error\n");
                     }else{
                         fgets(line, 1024, fp);
                         printf("%s\n", line);
                     }
                     pclose(fp);
                     freeGraph(g);
+                    close(fd);
                     exit(0);
                 }
                 printf("\n");
@@ -259,7 +265,7 @@ int i =0;
                 
                 gPrintNodes(g);
                 gPrintThread(g);
-                if(chkCycle(g)) printf("CYCLE!\n");
+                // if(chkCycle(g)) printf("CYCLE!\n");
                 printf("\n");
             }
             else{
