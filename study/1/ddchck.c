@@ -10,26 +10,53 @@
 #define RED "\033[31m"
 #define NORM "\033[37m"
 
+typedef struct Edge{
+    int traveledCnt;
+    struct Thread* threadID; //pThread
+    struct Node** traveled; //pNode*
+    struct Node* dest; //pNode
+}Edge;
+typedef Edge* pEdge;
+
 typedef struct Node{
+    int pathsCnt, chker, edgeCnt;
     pthread_mutex_t *mutex;
     struct Node** paths;
-    int pathsCnt, chker;
+    pEdge* edges;
+    struct Thread* predicter;
 }Node;
 typedef Node* pNode;
 
 typedef struct Thread{
+    int holdsCnt;
     pthread_t* pid;
     pNode* holds;
-    int holdsCnt;
 } Thread;
 typedef Thread* pThread;
 
 typedef struct Graph{
-    pNode* nodes;
     int nodesCnt, threadsCnt;
+    pNode* nodes;
     pThread* threads;
 }Graph;
 typedef Graph* pGraph;
+
+pEdge createEdge(pThread tid){
+    pEdge e = (pEdge)malloc(sizeof(Edge));
+    e->traveledCnt =tid->holdsCnt -1;
+    e->threadID = tid;
+    e->traveled = (pNode*)malloc(sizeof(pNode)*e->traveledCnt);
+    for(int i =0; i< e->traveledCnt; i++){
+        e->traveled[i] = tid->holds[i];
+    }
+    e->dest = tid->holds[tid->holdsCnt-1];
+    return e;
+}
+
+void freeEdge(pEdge e){
+    free(e->traveled);
+    free(e);
+}
 
 pGraph createGraph(){
     pGraph g = (pGraph)malloc(sizeof(Graph));
@@ -85,6 +112,9 @@ void gPrintThread(pGraph g){
 }
 void freeGraph(pGraph g){
     for(int i =0; i< g->nodesCnt; i++){
+        for(int j =0; j< g->nodes[i]->edgeCnt; j++){
+            freeEdge(g->nodes[i]->edges[j]);
+        }
         free(g->nodes[i]->paths);
         free(g->nodes[i]);
     }
@@ -96,6 +126,19 @@ void freeGraph(pGraph g){
     free(g->threads);
     free(g);
 }
+void gPrintEdge(pGraph g){
+    printf("gPrintEdge: \n");
+    for(int i=0; i< g->nodesCnt; i++){
+        printf("\tnode %p:\n", g->nodes[i]);
+        for(int j =0; j < g->nodes[i]->edgeCnt; j++){
+            printf("\t\ttid: %p, dest: %p, traveled: ", g->nodes[i]->edges[j]->threadID, g->nodes[i]->edges[j]->dest);
+            for(int k =0; k<g->nodes[i]->edges[j]->traveledCnt; k++){
+                printf("%p -> ", g->nodes[i]->edges[j]->traveled[k]);
+            }
+            printf("\n");
+        }
+    }
+}
 
 int chkCycleRecur(pNode currNode){
     if(currNode->chker == 1) return 1; //found cycle
@@ -106,12 +149,28 @@ int chkCycleRecur(pNode currNode){
     currNode->chker = 0;
     return 0; //no cycle
 }
-int chkCycle(pGraph g){
+int chkCycle(pGraph g, char* fileName, int addr){
     for(int i =0; i< g->nodesCnt; i++)
         g->nodes[i]->chker = 0;
 
     for(int i =0; i< g->nodesCnt; i++){
-        if(chkCycleRecur(g->nodes[i])) return 1;
+        if(chkCycleRecur(g->nodes[i])){ 
+            char addr2line[50];
+            char line[1024];
+            printf(RED"-----CYLCE DETECTED!-----\n"NORM);
+
+            sprintf(addr2line, "addr2line -e %s %x", fileName, addr);
+            // printf("%s\n", addr2line);
+            FILE *fp =NULL;
+            if((fp = popen(addr2line, "r")) == NULL){
+                printf("popen error\n");
+            }else{
+                fgets(line, 1024, fp);
+                printf("Dead lock happened on %s\n", line);
+            }
+            pclose(fp);
+            return 1;
+        }
     }
     return 0;
 }
@@ -122,6 +181,8 @@ pNode createNode(pthread_mutex_t* m){
     n->paths = NULL;
     n->pathsCnt = 0;
     n->chker = 0;
+    n->edgeCnt = 0;
+    n->edges = NULL;
     return n;
 }
 void nAddPath(pNode src, pNode dest){
@@ -143,6 +204,22 @@ void nDelPath(pNode src, pNode dest){
         }
     }
 }
+void nAddEdge(pNode n, pEdge toAdd){
+    for(int i = 0; i< n->edgeCnt; i++){
+        if(n->edges[i]->threadID == toAdd->threadID && n->edges[i]->dest == toAdd->dest 
+                                        && n->edges[i]->traveledCnt == toAdd->traveledCnt){
+            for(int j =0; j< toAdd->traveledCnt; j++){
+                if(n->edges[i]->traveled[j] == toAdd->traveled[j]){ 
+                    freeEdge(toAdd);
+                    return;
+                }
+            }
+        }
+    }
+    n->edgeCnt++;
+    n->edges = (pEdge*)realloc(n->edges, sizeof(pEdge) * n->edgeCnt);
+    n->edges[n->edgeCnt-1] = toAdd;
+}
 
 pThread createThread(pthread_t* pid){
     pThread t = (pThread)malloc(sizeof(Thread));
@@ -152,15 +229,20 @@ pThread createThread(pthread_t* pid){
     return t;
 }
 void tAddNode(pThread t, pNode toAdd){
+    printf("\tcurrThread: %p nodetoadd: %p\n", t, toAdd);
     t->holdsCnt++;
     t->holds = (pNode*)realloc(t->holds, sizeof(pNode)* t->holdsCnt);
     t->holds[t->holdsCnt - 1] = toAdd;
     
-    if(t->holdsCnt>1)
+    if(t->holdsCnt>1){
         nAddPath(t->holds[t->holdsCnt-2], t->holds[t->holdsCnt -1]);
+        pEdge newEdge = createEdge(t);
+        nAddEdge(t->holds[t->holdsCnt-2], newEdge);
+    }
 
 }
 void tDelNode(pThread t, pNode toDel){
+    printf("\tcurrThread: %p, freeing: %p\n", t, toDel);
     for(int i =0; i< t->holdsCnt; i++){
         if(t->holds[i] == toDel){
             if(i-1 >-1){
@@ -183,7 +265,29 @@ void tDelNode(pThread t, pNode toDel){
     }
 }
 
-void main(){
+void predictRecur(pNode currNode, pEdge prevEdge){
+    if(currNode->predicter == prevEdge->threadID){
+    }
+    for(int i =0; i< currNode->edgeCnt; i++){
+        predictRecur(currNode->edges[i]->dest, currNode->edges[i]);
+    }
+    
+}
+
+void predict(pGraph g){
+    for(int i =0; i< g->nodesCnt; i++)
+        g->nodes[i]->predicter = NULL;
+
+    for(int i =0; i< g->nodesCnt; i++){
+        for(int j =0; j<g->nodes[i]->edgeCnt; j++){
+            predictRecur(g->nodes[i], NULL);
+            // predictRecur(g->nodes[i], g->nodes[i]->edges[j]);
+        }
+        
+    }
+}
+
+void main(int argc, char* argv[]){
     if (mkfifo(".ddtrace", 0666)) {
 		if (errno != EEXIST) {
 			perror("fail to open fifo: ") ;
@@ -192,28 +296,29 @@ void main(){
 	}
     int fd = open(".ddtrace", O_RDONLY | O_SYNC);
     pGraph g = createGraph();
-int i =0;
+    int loopCnt =0, len =0, protocol=0, addr=0; //protocol:1 lock, 0 unlock
+    pthread_mutex_t* m=NULL;
+    pthread_t *pid = NULL;
+
     while(1){
-        pthread_mutex_t* m=NULL;
-        pthread_t *pid = NULL;
-        int len =0, protocol=0, addrLen=0; //protocol:1 lock, 0 unlock
-        char addr[30];
         if((len = read(fd, &protocol, 4)) == -1) break;
         if((len = read(fd, &pid, 8)) == -1) break;
         if((len = read(fd, &m, 8)) == -1) break;
-        if((len = read(fd, &addrLen, 4)) == -1) break;
-        if((len = read(fd, &addr, addrLen)) == -1) break;
+        if((len = read(fd, &addr, 4)) == -1) break;
+        
         if(len == 0){
+            gPrintEdge(g);
+            predict(g);
+            freeGraph(g);
             close(fd);
-            int fd = open(".ddtrace", O_RDONLY | O_SYNC);
-            g = createGraph();
+            exit(0);
         }
         else if(len>0){
             if(protocol == 1){
-                printf("LOCKED\n");
+                printf("LOCKED\n%d --- pid: %p m: %p \n", loopCnt, pid, m);
                 pNode nodeToAdd = NULL;
                 pThread currThread = NULL;
-                printf("%d --- pid: %p m: %p \n", i, pid, m);
+                
                 if ((nodeToAdd = gChkNodeExist(g, m)) == NULL){
                     nodeToAdd = createNode(m);
                     gAddNode(g, nodeToAdd);
@@ -222,60 +327,36 @@ int i =0;
                     currThread = createThread(pid);
                     gAddThread(g, currThread);
                 }
-                printf("\tcurrThread: %p nodetoadd: %p\n", currThread, nodeToAdd);
+                
                 tAddNode(currThread, nodeToAdd);
                 
                 gPrintNodes(g);
                 gPrintThread(g);
-                if(chkCycle(g)){
-                    printf(RED"-----CYLCE!-----\n"NORM);
-                    // printf("%s\n", addr);
-                    char line[1024];
-
-                    for(int i =0; i< addrLen; i++){
-                        if(addr[i] == '(')
-                            addr[i] = ' ';
-                    }
-
-                    char addr2line[50] = "addr2line -e";
-                    strcat(addr2line, addr);
-                    FILE *fp =NULL;
-                    if((fp = popen(addr2line, "r")) == NULL){
-                        printf("popen error\n");
-                    }else{
-                        fgets(line, 1024, fp);
-                        printf("%s\n", line);
-                    }
-                    pclose(fp);
+                printf("\n");
+                if(chkCycle(g, argv[1], addr)){
                     freeGraph(g);
                     close(fd);
                     exit(0);
                 }
-                printf("\n");
             }
             else if(protocol == 0){
-                printf("UNLOCKED\n");
-                printf("%d --- pid: %p m: %p \n", i, pid, m);
-                pNode target = NULL;
-                pThread currThread = NULL;
-                currThread = gChkThreadExist(g, pid);
-                target = gChkNodeExist(g, m);
-                printf("\tcurrThread: %p, freeing: %p\n", currThread, target);
+                printf("UNLOCKED\n%d --- pid: %p m: %p \n", loopCnt, pid, m);
+                
+                pThread currThread = gChkThreadExist(g, pid);
+                pNode target = gChkNodeExist(g, m);
+                
                 tDelNode(currThread, target);
                 
                 gPrintNodes(g);
                 gPrintThread(g);
-                // if(chkCycle(g)) printf("CYCLE!\n");
                 printf("\n");
             }
             else{
-                printf("PIPE ERROR!\n");
+                printf("PROTOCOL ERROR!\n");
                 exit(1);
             }
             printf("==================================\n\n");
-            i++;
+            loopCnt++;
         }
     }
-
-    close(fd);
 }
