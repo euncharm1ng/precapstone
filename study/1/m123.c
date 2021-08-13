@@ -13,9 +13,13 @@ void* mythr(){
     pthread_mutex_lock(&m1);
     pthread_mutex_lock(&m2);
     pthread_mutex_lock(&m3);
+
     printf("freeing m2\n");
+
     pthread_mutex_unlock(&m2);
+
     printf("locking m1\n");
+    
     pthread_mutex_lock(&m1);
 
     pthread_mutex_unlock(&m1);
