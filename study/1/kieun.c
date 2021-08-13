@@ -7,18 +7,21 @@ pthread_mutex_t second;
 int cnt = 10;
 int n = 0;
 void * routine (){
-    if( cnt % 2 == 0 ){
-        pthread_mutex_lock( &first );
-        pthread_mutex_lock( &second );
-    } else {
-        pthread_mutex_lock( &second );
-        pthread_mutex_lock( &first );
+    // printf("before: %d ",cnt);
+    for(int i =0; i< 100; i++){
+        if( cnt % 2 == 0 ){
+            pthread_mutex_lock( &first );
+            pthread_mutex_lock( &second );
+        } else {
+            pthread_mutex_lock( &second );
+            pthread_mutex_lock( &first );
+        }
+        cnt += 1;
+        n += cnt * 10;
+        printf("cnt %d n %d in routine \n", cnt, n);
+        pthread_mutex_unlock(&first);
+        pthread_mutex_unlock(&second);
     }
-    cnt += 1;
-    n += cnt * 10;
-    printf("cnt %d n %d in routine \n", cnt, n);
-    pthread_mutex_unlock(&first);
-    pthread_mutex_unlock(&second);
 }
 int main(){
     pthread_t thread[PTHREAD_NUM];
