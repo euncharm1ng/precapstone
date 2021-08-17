@@ -296,7 +296,7 @@ void doDdchck(int protocol, pthread_t* pid, pthread_mutex_t* m){
     }
 }
 
-void callDdchck(int protocol, pthread_t* pid, pthread_mutex_t* m){
+void callDdchck(int protocol, long* pid, long* m){
     int fd = open(".ddtrace", O_WRONLY | O_SYNC);
     char msg[24];
     int addr = get_trace(NULL);
@@ -322,11 +322,11 @@ void* pthread_mutex_lock(pthread_mutex_t * m){
         printf(RED"LOCK --- %p, %p\n"NORM, pid, m);
         #endif
     #if CALLDDCHCK
-    callDdchck(lock, pid, m); 
+    callDdchck(lock, (long*)pid, (long*)m); 
     #else
     doDdchck(lock, pid, m);
     #endif
-    lockp(m);
+    return lockp(m);
 }
 
 void* pthread_mutex_unlock(pthread_mutex_t * m){
@@ -343,9 +343,24 @@ void* pthread_mutex_unlock(pthread_mutex_t * m){
         printf(RED"UNLK --- %p, %p\n"NORM, pid, m);
         #endif
     #if CALLDDCHCK
-    callDdchck(unlock, pid, m);
+    callDdchck(unlock, (long*)pid, (long*)m);
     #else
     doDdchck(unlock, pid, m);
     #endif
-    unlockp(m);
+    return unlockp(m);
+}
+
+void* pthread_create(pthread_t *restrict thread, const pthread_attr_t *restrict attr, void *(*start_routine)(void *), void *restrict arg){
+    int create = 2;
+    pthread_t* pid;
+    void* (*createp)(pthread_t *restrict thread, const pthread_attr_t *restrict attr, void *(*start_routine)(void *), void *restrict arg);
+    void* (*selfp)();
+    createp = dlsym(RTLD_NEXT, "pthread_create");
+    selfp = dlsym(RTLD_NEXT, "pthread_self");
+    if(dlerror() != NULL) exit(1);
+
+    pid = selfp();
+    void* createReturn = createp(thread, attr, start_routine, arg);
+    callDdchck(create, pid, (long*)*thread);
+    return createReturn;
 }

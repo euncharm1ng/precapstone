@@ -28,8 +28,9 @@ void* myfunc2(){
 void main(){
     pthread_t thread1, thread2;
     pthread_create(&thread1, NULL, myfunc1, NULL);
-    pthread_join(thread1, NULL);
+    sleep(1);
     pthread_create(&thread2, NULL, myfunc2, NULL);
+    pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
     printf("end\n");
 }

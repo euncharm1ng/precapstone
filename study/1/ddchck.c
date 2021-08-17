@@ -17,19 +17,19 @@ char* fileName;
 int cyclePredicted = 1;
 
 typedef struct Edge{
-    int traveledCnt, lockAddr;
-    struct Thread* threadID; //pThread
+    int traveledCnt, lockAddr, threadIDCnt;
+    struct Thread** threadID; //pThread
     struct Node** traveled; //pNode*
     struct Node* dest; //pNode
 }Edge;
 typedef Edge* pEdge;
 
 typedef struct Node{
-    int pathsCnt, cycleChker, edgeCnt;
-    pthread_mutex_t *mutex;
+    int pathsCnt, cycleChker, edgeCnt, cyclePredCnt;
+    long *mutex;
     struct Node** paths;
     pEdge* edges;
-    struct Thread* cyclePred;
+    struct Thread** cyclePred;
 }Node;
 typedef Node* pNode;
 
@@ -51,8 +51,10 @@ typedef Graph* pGraph;
 
 pEdge createEdge(pThread t, int addr){
     pEdge e = (pEdge)malloc(sizeof(Edge));
+    e->threadIDCnt = 1;
     e->traveledCnt =t->holdsCnt -1;
-    e->threadID = t;
+    e->threadID = (pThread*)malloc(sizeof(pThread) * e->threadIDCnt);
+    e->threadID[0] = t;
     e->traveled = (pNode*)malloc(sizeof(pNode)*e->traveledCnt);
     for(int i =0; i< e->traveledCnt; i++){
         e->traveled[i] = t->holds[i];
@@ -66,8 +68,9 @@ void freeEdge(pEdge e){
     free(e);
 }
 
-pNode createNode(pthread_mutex_t* m){
+pNode createNode(long* m){
     pNode n = (pNode)malloc(sizeof(Node));
+    n->cyclePredCnt = 0;
     n->mutex = m;
     n->paths = NULL;
     n->pathsCnt = 0;
@@ -189,7 +192,7 @@ void gAddThread(pGraph g, pThread toAdd){
     g->threads = (pThread*)realloc(g->threads, sizeof(pThread) * g->threadsCnt);
     g->threads[g->threadsCnt - 1] = toAdd;
 }
-pNode gChkNodeExist(pGraph g, pthread_mutex_t* m){
+pNode gChkNodeExist(pGraph g, long* m){
     for(int i =0; i < g->nodesCnt; i++){
         if(g->nodes[i]->mutex == m) return g->nodes[i];
     }
@@ -238,7 +241,7 @@ void gPrintThread(pGraph g){
         printf("\n");
     }
 }
-void gAddToGraph(pGraph g, pthread_mutex_t* m, pthread_t* pid, int addr){
+void gAddToGraph(pGraph g, long* m, long* pid, int addr){
     pNode nodeToAdd = NULL;
     pThread currThread = NULL;
     
@@ -254,7 +257,7 @@ void gAddToGraph(pGraph g, pthread_mutex_t* m, pthread_t* pid, int addr){
     tAddNode(currThread, nodeToAdd, g, addr);
     gAddEdge(g, currThread, addr); //must called after tAddNode
 }
-void gDelFromGraph(pGraph g, pthread_mutex_t* m, pthread_t* pid){
+void gDelFromGraph(pGraph g, long* m, pthread_t* pid){
     pThread currThread = gChkThreadExist(g, pid);
     pNode target = gChkNodeExist(g, m);
     
@@ -329,9 +332,18 @@ int chkTraveledOverlap(pEdge prevEdge, pEdge currEdge){
     }
     return 1;
 }
+int tidExistInEdge(pNode currNode, pEdge prevEdge){
+    printf(RED"-32-2-2--332-tidExistInEdge\n"NORM);
+    for(int i =0; i<prevEdge->threadIDCnt; i++){
+        for(int j =0; j<currNode->cyclePredCnt; j++){
+            if(currNode->cyclePred[j] == prevEdge->threadID[i]) return 1;
+        }
+    }
+    return 0;
+}
 void predictRecur(pNode currNode, pEdge prevEdge){
     if(currNode->cyclePred == NULL) ;
-    else if(currNode->cyclePred == prevEdge->threadID)
+    else if(tidExistInEdge(currNode, prevEdge))//currNode->cyclePred == prevEdge->threadID)
         return;
     else{
         if(cyclePredicted){ 
@@ -342,10 +354,17 @@ void predictRecur(pNode currNode, pEdge prevEdge){
         return;
     }
     
-    currNode->cyclePred = prevEdge->threadID;
+    // currNode->cyclePred = prevEdge->threadID;
     for(int i =0; i< currNode->edgeCnt; i++){
-        if(currNode->edges[i]->threadID == prevEdge->threadID || chkTraveledOverlap(prevEdge, currNode->edges[i]))
+        if(currNode->edges[i]->threadID == prevEdge->threadID || chkTraveledOverlap(prevEdge, currNode->edges[i])){
+            //currNode->cyclePred = currNode->edges[i]->threadID;
+            currNode->cyclePredCnt = currNode->edges[i]->threadIDCnt;
+            currNode->cyclePred = (pThread*)malloc(sizeof(pThread) * currNode->cyclePredCnt);
+            for(int j =0; j<currNode->cyclePredCnt; j++){
+                currNode->cyclePred[j] = currNode->edges[i]->threadID[j];
+            }
             predictRecur(currNode->edges[i]->dest, currNode->edges[i]);
+        }
     }
     currNode->cyclePred = NULL;
 }
@@ -366,9 +385,10 @@ void main(int argc, char* argv[]){
 	}
     int fd = open(".ddtrace", O_RDONLY | O_SYNC);
     pGraph g = createGraph();
-    int loopCnt =0, len =0, protocol=0, addr=0; //protocol:1 lock, 0 unlock
-    pthread_mutex_t* m=NULL;
-    pthread_t *pid = NULL;
+    int loopCnt =0, len =0, protocol=0, addr=0; //protocol:1 lock, 0 unlock, 2 create, 3 join
+    //pthread_mutex_t* m=NULL;
+    //pthread_t *pid = NULL;
+    long *m = NULL, *pid = NULL;
     fileName = argv[1];
 
     while(1){
@@ -376,7 +396,6 @@ void main(int argc, char* argv[]){
         if((len = read(fd, &pid, 8)) == -1) break;
         if((len = read(fd, &m, 8)) == -1) break;
         if((len = read(fd, &addr, 4)) == -1) break;
-        
         if(len == 0){
                 #if PRINTDEBUG
                 gPrintEdge(g);
@@ -411,6 +430,9 @@ void main(int argc, char* argv[]){
                     gPrintNodes(g);
                     gPrintThread(g);
                     #endif
+            }
+            else if(protocol == 2){
+                printf("=============================%p, %p\n", pid, m);
             }
             else{
                 printf("PROTOCOL ERROR!\n");
