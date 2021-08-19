@@ -31,6 +31,7 @@
 
 thread_t* head, *tail;
 tid_t tidProducer = 1000;
+// static int yieldTimer = 0;
 
 /*******************************************************************************
                              Auxiliary functions
@@ -89,9 +90,27 @@ void set_timer(void (*handler) (int), int ms) {
   };
 }
 
+void reset_timer(void (*handler) (int), int ms) {
+  struct itimerval timer;
+  struct sigaction sa;
+  /* Install signal handler for the timer. */
+  memset (&sa, 0, sizeof (sa));
+  sa.sa_handler =  handler;
+  sigaction (SIGALRM, &sa, NULL);
+  /* Configure the timer to expire after ms msec... */
+  timer.it_value.tv_sec = 0;
+  timer.it_value.tv_usec = 0;
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_usec = 0;
+  if (setitimer (ITIMER_REAL, &timer, NULL) < 0) {
+    perror("Setting timer");
+    exit(EXIT_FAILURE);
+  };
+}
+
 /* Timer signal handler. */
 void timer_handler (int signum) {
-  set_timer(timer_handler, TIMEOUT);
+  // set_timer(timer_handler, TIMEOUT);
   yield();
 }
 
@@ -127,6 +146,7 @@ tid_t spawn(void (*start)()){
 }
 
 void yield(){
+  reset_timer(timer_handler, TIMEOUT);
   if(head->state == running) head->state = ready;
 
   thread_t *toRun = head->next;
@@ -142,11 +162,13 @@ void yield(){
     head->state = ready;
     return;
   }
+
   tail = tail->next = head;
   tail->next = NULL;
   head = toRun;
   if(head->state == ready) head->state = running;
-
+  
+  set_timer(timer_handler, TIMEOUT);
   swapcontext(&(tail->ctx), &(head->ctx));
 }
 

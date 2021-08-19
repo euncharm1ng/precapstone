@@ -2,6 +2,7 @@
 #include <stdio.h>    // printf(), fprintf(), stdout, stderr, perror(), _IOLBF
 #include <stdbool.h>  // true, false
 #include <limits.h>   // INT_MAX
+#include <unistd.h>
 
 #include "sthreads.h" // init(), spawn(), yield(), done()
 
@@ -20,7 +21,7 @@ void numbers() {
     printf(" n = %d\n", n);
     n = (n + 1) % (INT_MAX);
     // if (n > 3) done();
-    // yield();
+    yield();
   }
 }
 
@@ -117,13 +118,21 @@ void magic_numbers() {
       // Start over when m overflows.
       n = 3;
     }
-    // yield();
+    yield();
   }
 }
 
 void myfunc(){
-  done();
-  printf("hello world\n");
+  usleep(2500);
+  printf("myfunc 1\n");
+  yield();
+  printf("myfunc 1\n");
+  
+}
+
+void myfunc2(){
+  usleep(2000);
+  printf("myfunc 2\n");
 }
 
 /*******************************************************************************
@@ -138,8 +147,8 @@ int main(){
 
   init(); // Initialization
 
-  spawn(magic_numbers);
-  spawn(numbers);
+  spawn(myfunc);
+  spawn(myfunc2);
   join();
   join();
   printf("not here\n");
