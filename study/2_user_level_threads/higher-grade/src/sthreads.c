@@ -30,15 +30,16 @@
 ********************************************************************************/
 
 thread_t* head, *tail;
-tid_t tidProducer = 1000;
-// static int yieldTimer = 0;
+tid_t tid_producer = 1000;
 
 /*******************************************************************************
                              Auxiliary functions
 
                       Add internal helper functions here.
 ********************************************************************************/
-int createCTX(ucontext_t* ctx, ucontext_t* next){
+int 
+create_ctx (ucontext_t* ctx, ucontext_t* next)
+{
   void *stack = malloc(STACK_SIZE);
   if (stack == NULL) {
     perror("Allocating stack");
@@ -57,22 +58,15 @@ int createCTX(ucontext_t* ctx, ucontext_t* next){
   return 1;
 }
 
-void setCTXLink(ucontext_t* ctx, ucontext_t* next){
+void 
+set_ctx_link (ucontext_t* ctx, ucontext_t* next)
+{
   ctx->uc_link = next;
 }
 
-/* Set a timer and a handler for the timer.
-
-   Arguments
-
-   type: type of timer, one of ITIMER_REAL, ITIMER_VIRTUAL, or ITIMER_PROF.
-
-   handler: timer signal handler.
-
-   ms: time in ms for the timer. 
-
- */
-void set_timer(void (*handler) (int), int ms) {
+void 
+set_timer (void (*handler) (int), int ms) 
+{
   struct itimerval timer;
   struct sigaction sa;
   /* Install signal handler for the timer. */
@@ -90,7 +84,9 @@ void set_timer(void (*handler) (int), int ms) {
   };
 }
 
-void reset_timer(void (*handler) (int), int ms) {
+void 
+reset_timer (void (*handler) (int), int ms) 
+{
   struct itimerval timer;
   struct sigaction sa;
   /* Install signal handler for the timer. */
@@ -108,55 +104,62 @@ void reset_timer(void (*handler) (int), int ms) {
   };
 }
 
-/* Timer signal handler. */
-void timer_handler (int signum) {
-  // set_timer(timer_handler, TIMEOUT);
+void 
+timer_handler (int signum) 
+{
   yield();
 }
 
 /*******************************************************************************
                     Implementation of the Simple Threads API
 ********************************************************************************/
-int  init(){
+int 
+init ()
+{
   set_timer(timer_handler, TIMEOUT);
 
   tail = head = (thread_t*)malloc(sizeof(thread_t));
-  if(createCTX(&(head->ctx), NULL)!= 1) return -1;
+  if(create_ctx(&(head->ctx), NULL)!= 1) return -1;
   head->state = running;
   head->next = NULL;
-  head->tid = tidProducer++;
+  head->tid = tid_producer++;
   return 1;
 }
 
-tid_t spawn(void (*start)()){
-  thread_t* newT = (thread_t*)malloc(sizeof(thread_t));
+tid_t 
+spawn (void (*start)())
+{
+  thread_t* new_thread = (thread_t*)malloc(sizeof(thread_t));
 
-  if(newT == NULL) return -1;
-  if(createCTX(&(newT->ctx), &(head->ctx))!= 1) return -2;
-  newT->state = ready;
-  newT->next = NULL;
-  newT->tid = tidProducer++;
+  if(new_thread == NULL) return -1;
+  if(create_ctx(&(new_thread->ctx), &(head->ctx))!= 1) return -2;
+  new_thread->state = ready;
+  new_thread->next = NULL;
+  new_thread->tid = tid_producer++;
   
-  setCTXLink(&(tail->ctx), &(newT->ctx));
+  set_ctx_link(&(tail->ctx), &(new_thread->ctx));
   
-  tail = tail->next = newT;
-  makecontext(&(newT->ctx), start, 0);
+  tail = tail->next = new_thread;
+  makecontext(&(new_thread->ctx), start, 0);
 
-  return newT->tid;
+  return new_thread->tid;
 }
 
-void yield(){
+void 
+yield ()
+{
   reset_timer(timer_handler, TIMEOUT);
   if(head->state == running) head->state = ready;
 
-  thread_t *toRun = head->next;
-  while(toRun != NULL && toRun->state == terminated){
-    thread_t* terminatedThread = toRun;
-    toRun = toRun->next;
-    free(terminatedThread);
+  thread_t *to_run = head->next;
+  while(to_run != NULL && to_run->state == terminated){
+    thread_t* terminated_thread = to_run;
+    to_run = to_run->next;
+    free(terminated_thread->ctx.uc_stack.ss_sp);
+    free(terminated_thread);
   }
 
-  if(toRun == NULL){
+  if(to_run == NULL){
     tail = head;
     head->next = NULL;
     head->state = ready;
@@ -165,14 +168,15 @@ void yield(){
 
   tail = tail->next = head;
   tail->next = NULL;
-  head = toRun;
+  head = to_run;
   if(head->state == ready) head->state = running;
   
   set_timer(timer_handler, TIMEOUT);
   swapcontext(&(tail->ctx), &(head->ctx));
 }
 
-void done(){
+void 
+done () {
   head->state = terminated;
   thread_t *curr = head;
   while(curr!=NULL){
@@ -182,7 +186,9 @@ void done(){
   yield();
 }
 
-tid_t join() {
+tid_t 
+join () 
+{
   head->state = waiting;
   while(head->state == waiting)
     yield();

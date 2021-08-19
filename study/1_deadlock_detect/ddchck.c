@@ -208,12 +208,20 @@ void gPrintEdge(pGraph g){
     printf("gPrintEdge: \n");
     printf("\tgraph:\n");
     for(int i =0; i< g->startingEdgesCnt; i++){
-        printf("\t\ttid: %p, dest: %p\n", g->startingEdges[i]->threadID, g->startingEdges[i]->dest);
+        printf("\t\ttid: ");
+        for(int j =0; j < g->startingEdges[i]->threadIDCnt; j++){
+            printf(" %p, ", g->startingEdges[i]->threadID[j]);
+        }
+        printf("\n\t\t\t dest: %p\n", g->startingEdges[i]->dest);
     }
     for(int i=0; i< g->nodesCnt; i++){
         printf("\tnode %p:\n", g->nodes[i]);
         for(int j =0; j < g->nodes[i]->edgeCnt; j++){
-            printf("\t\ttid: %p, dest: %p, traveled: ", g->nodes[i]->edges[j]->threadID, g->nodes[i]->edges[j]->dest);
+            printf("\t\ttid: ");
+            for(int k =0; k < g->nodes[i]->edges[j]->threadIDCnt; k++){
+                printf(" %p, ", g->nodes[i]->edges[j]->threadID[k]);
+            }
+            printf("\n\t\t\tdest: %p, traveled: ", g->nodes[i]->edges[j]->dest);
             for(int k =0; k<g->nodes[i]->edges[j]->traveledCnt; k++){
                 printf("%p -> ", g->nodes[i]->edges[j]->traveled[k]);
             }
@@ -341,13 +349,21 @@ int tidExistInEdge(pNode currNode, pEdge prevEdge){
     }
     return 0;
 }
+int tidCmp(pThread* currNode, pThread* prevEdge, int currNodeCnt, int prevEdgeCnt){
+    for(int i =0; i<prevEdgeCnt; i++){
+        for(int j =0; j<currNodeCnt; j++){
+            if(currNode[j] == prevEdge[i]) return 1;
+        }
+    }
+    return 0;
+}
 void predictRecur(pNode currNode, pEdge prevEdge){
-    if(currNode->cyclePred == NULL) ;
-    else if(tidExistInEdge(currNode, prevEdge))//currNode->cyclePred == prevEdge->threadID)
+    if(currNode->cyclePred == NULL);
+    else if(tidCmp(currNode->cyclePred, prevEdge->threadID, currNode->cyclePredCnt, prevEdge->threadIDCnt))//tidExistInEdge(currNode, prevEdge))//currNode->cyclePred == prevEdge->threadID)
         return;
     else{
         if(cyclePredicted){ 
-            printf(CYAN "DEADLOCK IS PREDICTED ON:\n" NORM);
+            printf(RED "DEADLOCK IS PREDICTED ON:\n" NORM);
             cyclePredicted = 0;
         }
         printAddr2line(prevEdge->lockAddr);
@@ -356,7 +372,9 @@ void predictRecur(pNode currNode, pEdge prevEdge){
     
     // currNode->cyclePred = prevEdge->threadID;
     for(int i =0; i< currNode->edgeCnt; i++){
-        if(currNode->edges[i]->threadID == prevEdge->threadID || chkTraveledOverlap(prevEdge, currNode->edges[i])){
+        // if(currNode->edges[i]->threadID == prevEdge->threadID || chkTraveledOverlap(prevEdge, currNode->edges[i])){
+        if(tidCmp(currNode->edges[i]->threadID, prevEdge->threadID, currNode->edges[i]->threadIDCnt, prevEdge->threadIDCnt) 
+                                                    || chkTraveledOverlap(prevEdge, currNode->edges[i])){
             //currNode->cyclePred = currNode->edges[i]->threadID;
             currNode->cyclePredCnt = currNode->edges[i]->threadIDCnt;
             currNode->cyclePred = (pThread*)malloc(sizeof(pThread) * currNode->cyclePredCnt);
@@ -432,7 +450,46 @@ void main(int argc, char* argv[]){
                     #endif
             }
             else if(protocol == 2){
-                printf("=============================%p, %p\n", pid, m);
+                printf(CYAN"CREATED\n%d --- pid: %p m: %p \n"NORM, loopCnt, pid, m);
+                pThread childT = NULL, parentT = NULL;
+                if((childT = gChkThreadExist(g, m)) == NULL){
+                    childT = createThread(m);
+                    gAddThread(g, childT);
+                }
+
+                if((parentT = gChkThreadExist(g, pid)) != NULL){
+                    // if(parentT->holdsCnt == 0) ;
+                    // else{
+                    //     for(int i =0; i< g->startingEdgesCnt; i++){
+                    //         if(g->startingEdges[i]->dest == parentT->holds[0]){
+                    //             pEdge currE = g->startingEdges[i];
+                    //             currE->threadID = (pThread*)realloc(currE->threadID, sizeof(pThread) * currE->threadIDCnt++);
+                    //             currE->threadID[currE->threadIDCnt-1] = childT;
+                    //         }
+                    //     }
+                    //     for(int i = 0; i < parentT->holdsCnt - 1; i++){
+                    //         parentT->holds[i]->edges;
+                    //         for(int j = 0; j < parentT->holds[i]->edgeCnt; j++){
+                    //             if(parentT->holds[i]->edges[j]->dest == parentT->holds[i+1]){
+                    //                 pEdge currE = parentT->holds[i]->edges[j];
+                    //                 currE->threadID = (pThread*)realloc(currE->threadID, sizeof(pThread) * currE->threadIDCnt++);
+                    //                 currE->threadID[currE->threadIDCnt-1] = childT;
+                    //                 break;
+                    //             }
+                    //         }
+                    //     }
+                    // }
+                    for(int i =0; i< g->startingEdgesCnt; i++){
+                        pEdge currE = g->startingEdges[i];
+                        while(tidCmp(currE->threadID, &parentT, currE->threadIDCnt, 1)){
+                            //TODO
+                        }
+                    }
+                }
+                    #if PRINTDEBUG 
+                    gPrintNodes(g);
+                    gPrintThread(g);
+                    #endif
             }
             else{
                 printf("PROTOCOL ERROR!\n");
