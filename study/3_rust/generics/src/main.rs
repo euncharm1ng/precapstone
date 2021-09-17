@@ -110,6 +110,7 @@ fn main()
     println!("the largest is {}", result);
 }
 */
+/*
 use std::fmt:Display;
 struct Pair<T> {
     x: T,
@@ -131,4 +132,15 @@ impl<T: Display + PartialOrd> Pair<T> {
             println!("the largest mem is y = {}", self.y);
         }
     }
+}
+*/
+
+fn main()
+{
+    let x;
+    {
+        let r = 5;
+        x = &r;
+    }
+    println!("{}", x);
 }
