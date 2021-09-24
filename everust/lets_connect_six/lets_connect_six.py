@@ -8,9 +8,7 @@ _home = -1
 _away = -1
 
 def connect(ip:str, port:int, color:int):
-	global _home
-	global _away
-	global _lcs_board
+	global _home, _away, _lcs_board
 	_home = color
 	if _home == 1: 
 		_away = 2
@@ -19,14 +17,12 @@ def connect(ip:str, port:int, color:int):
 	else:
 		print("ERROR: input 1 or 2 for color!")
 		exit(1)
-	print("trying to connect to server with ip " + ip + " and port being " + str(port))
+	print("Trying to connect to server with ip " + ip + " and port being " + str(port))
 	_socket_to_server.connect((ip, port))
-
-	print("connected to server, waiting for redstones...")
+	print("Connected to server! Now waiting for redstones...")
 	size = int.from_bytes(_socket_to_server.recv(4), "little")
 	data = _socket_to_server.recv(size).decode("utf-8")
-
-	print("this is red stones from server: " + data) 
+	print("Received red stones from server: " + data) 
 	looper = data.count(':') + 1
 	for i in range(looper):
 		chr_pos = 4 * i
@@ -35,7 +31,6 @@ def connect(ip:str, port:int, color:int):
 		if x > 8:
 			x = x - 1
 		y = 19 - int(data[num_pos:num_pos+2])
-		print("red stone: x: " + str(x) + ", y: " + str(y))
 		_lcs_board[y][x] = 3
 	print(_lcs_board)
 	return data
@@ -43,7 +38,7 @@ def connect(ip:str, port:int, color:int):
 
 def draw_and_wait(user_move:str):
 	global _lcs_board
-	print("draw and wait received: " + user_move)
+	print("Function draw_and_wait() received: " + user_move)
 	user_move = user_move.replace(" ", "").upper()
 	if user_move == "K10":
 		_lcs_board[9][9] = _home
@@ -55,20 +50,18 @@ def draw_and_wait(user_move:str):
 	else: 
 		[x1, y1, x2, y2] = _coor_to_num(user_move)
 		if _lcs_board[y1][x1] != 0 or _lcs_board[y2][x2] != 0:
-			print(str(user_move) + " is not empty!")
+			print("ERROR: " + str(user_move) + " is not empty!")
 			exit(1)
 		else:
 			_lcs_board[y1][x1] = _home
 			_lcs_board[y2][x2] = _home
-		
 	if len(user_move):
 		_socket_to_server.sendall((len(user_move)).to_bytes(4, byteorder='little') + str.encode(user_move))
 		print(user_move + " is sent, waiting for server")
-
-	print("waiting for server...")
+	print("Waiting for server...")
 	size = int.from_bytes(_socket_to_server.recv(4), "little")
 	away_move = _socket_to_server.recv(size).decode("utf-8")
-	print("this is away from server: " + away_move)
+	print("This is away from server: " + away_move)
 	if away_move == "K10":
 		_lcs_board[9][9] = _away
 	else: 
@@ -88,16 +81,13 @@ def _coor_to_num(coor):
 	y1 = 19 - int(coor[1:3])
 	x2 = ord(coor[4]) - 65
 	y2 = 19 - int (coor[5:7])
-
 	if x1 > 8:
 		x1 = x1 - 1
 	if x2 > 8:
 		x2 = x2 - 1
-
 	if x2 < 0 or x2 > 18 or y2 < 0 or y2 > 18 or x1 < 0 or x1 > 18 or y1 < 0 or y1 > 18:
-		print("ERROR: input out of bound in " + coor)
+		print("ERROR: input out of bound " + coor)
 		exit(1)
-
 	return [x1, y1, x2, y2]
 
 
