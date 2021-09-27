@@ -1,7 +1,6 @@
-import numpy
 import socket
 
-_lcs_board = numpy.zeros((19,19))
+_lcs_board = [[0 for i in range(19)] for j in range(19)]
 _socket_to_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 _socket_to_server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 _home = -1
@@ -39,25 +38,37 @@ def connect(ip:str, port:int, color:int):
 def draw_and_wait(user_move:str):
 	global _lcs_board
 	print("Function draw_and_wait() received: " + user_move)
-	user_move = user_move.replace(" ", "").upper()
-	if user_move == "K10":
+	msg = user_move.replace(" ", "").upper()
+	if msg == "K10":
 		_lcs_board[9][9] = _home
-	elif user_move == "":
+	elif msg == "":
 		pass
-	elif user_move[0] == 'I' or user_move[4] == 'I':
-		print("ERROR: \'I\' included in input " + user_move)
-		exit(1)
-	else: 
-		[x1, y1, x2, y2] = _coor_to_num(user_move)
-		if _lcs_board[y1][x1] != 0 or _lcs_board[y2][x2] != 0:
-			print("ERROR: " + str(user_move) + " is not empty!")
-			exit(1)
+	else:
+		stones = msg.split(':')
+		if len(stones) != 2:
+			msg = "BADINPUT$" + user_move
+			print(msg)
 		else:
-			_lcs_board[y1][x1] = _home
-			_lcs_board[y2][x2] = _home
-	if len(user_move):
-		_socket_to_server.sendall((len(user_move)).to_bytes(4, byteorder='little') + str.encode(user_move))
-		print(user_move + " is sent, waiting for server")
+			for coors in stones:
+				print(coors)
+				parsed_num = _a_coor_to_num(coors)
+				if parsed_num == "BADINPUT":
+					msg = parsed_num + "$" + user_move
+					print("here" + msg)
+				else:
+					(x,y) = parsed_num
+					if x > 18 or x < 0 or y > 18 or y < 0:
+						msg = "BADCOORD$" + user_move
+					elif _lcs_board[y][x] != 0:
+						msg = "NOTEMPYT$" + user_move
+					else:
+						print(str(x) + " " + str(y))
+						_lcs_board[y][x] = _home
+						_print_board()
+
+	if len(msg):
+		_socket_to_server.sendall((len(msg)).to_bytes(4, byteorder='little') + str.encode(msg))
+		print(msg + " is sent, ", end='')
 	print("Waiting for server...")
 	size = int.from_bytes(_socket_to_server.recv(4), "little")
 	away_move = _socket_to_server.recv(size).decode("utf-8")
@@ -76,6 +87,16 @@ def get_lcs_board(ask:str):
 	pass
 
 
+def _a_coor_to_num(coor):
+	if not coor[0].isalpha() or not coor[1:].isnumeric() or coor[0] == 'I':
+		return "BADINPUT"
+	x = ord(coor[0]) - 65
+	y = 19 - int(coor[1:])
+	if x > 8:
+		x = x - 1
+	return (x, y)
+
+
 def _coor_to_num(coor):
 	x1 = ord(coor[0]) - 65
 	y1 = 19 - int(coor[1:3])
@@ -90,9 +111,14 @@ def _coor_to_num(coor):
 		exit(1)
 	return [x1, y1, x2, y2]
 
+def _print_board():
+	for row in _lcs_board:
+		print(row)
 
 def main():
-	pass
+	_print_board()
+	x = input("input: ")
+	draw_and_wait(x)
 
 
 if __name__ == "__main__":
