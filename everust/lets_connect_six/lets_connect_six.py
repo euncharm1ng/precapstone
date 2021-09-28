@@ -6,7 +6,7 @@ _socket_to_server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 _home = -1
 _away = -1
 
-def connect(ip:str, port:int, color:int):
+def connect(ip:str, port:int, color:int) -> str:
 	global _home, _away, _lcs_board
 	_home = color
 	if _home == 1: 
@@ -21,7 +21,7 @@ def connect(ip:str, port:int, color:int):
 	print("Connected to server! Now waiting for redstones...")
 	size = int.from_bytes(_socket_to_server.recv(4), "little")
 	data = _socket_to_server.recv(size).decode("utf-8")
-	print("Received red stones from server: " + data) 
+	print("Received red stones from server: " + str(size) + " " + data) 
 	looper = data.count(':') + 1
 	for i in range(looper):
 		chr_pos = 4 * i
@@ -31,11 +31,11 @@ def connect(ip:str, port:int, color:int):
 			x = x - 1
 		y = 19 - int(data[num_pos:num_pos+2])
 		_lcs_board[y][x] = 3
-	print(_lcs_board)
+	_print_board()
 	return data
 
 
-def draw_and_wait(user_move:str):
+def draw_and_wait(user_move:str) -> str:
 	global _lcs_board
 	print("Function draw_and_wait() received: " + user_move)
 	msg = user_move.replace(" ", "").upper()
@@ -47,14 +47,12 @@ def draw_and_wait(user_move:str):
 		stones = msg.split(':')
 		if len(stones) != 2:
 			msg = "BADINPUT$" + user_move
-			print(msg)
 		else:
 			for coors in stones:
 				print(coors)
 				parsed_num = _a_coor_to_num(coors)
 				if parsed_num == "BADINPUT":
 					msg = parsed_num + "$" + user_move
-					print("here" + msg)
 				else:
 					(x,y) = parsed_num
 					if x > 18 or x < 0 or y > 18 or y < 0:
@@ -62,58 +60,62 @@ def draw_and_wait(user_move:str):
 					elif _lcs_board[y][x] != 0:
 						msg = "NOTEMPYT$" + user_move
 					else:
-						print(str(x) + " " + str(y))
 						_lcs_board[y][x] = _home
 						_print_board()
 
 	if len(msg):
 		_socket_to_server.sendall((len(msg)).to_bytes(4, byteorder='little') + str.encode(msg))
-		print(msg + " is sent, ", end='')
-	print("Waiting for server...")
+		print(msg + " is sent. ", end='')
+
+	print("Now waiting for server...")
 	size = int.from_bytes(_socket_to_server.recv(4), "little")
 	away_move = _socket_to_server.recv(size).decode("utf-8")
 	print("This is away from server: " + away_move)
+	away_move = away_move.replace(" ", "").upper()
 	if away_move == "K10":
 		_lcs_board[9][9] = _away
 	else: 
-		[x1, y1, x2, y2] = _coor_to_num(away_move)
-		_lcs_board[y1][x1] = _away
-		_lcs_board[y2][x2] = _away
-	print(_lcs_board)
+		away_coor = away_move.split(':')
+		for coors in away_coor:
+			(x, y) = _a_coor_to_num(coors)
+			_lcs_board[y][x] = _away
+	_print_board()
 	return away_move
 
 
-def get_lcs_board(ask:str):
-	pass
+def get_lcs_board(ask:str) -> chr:
+	result = _a_coor_to_num(ask)
+	if result == "BADINPUT": 
+		print("WRONG INPUT: " + ask)
+	(x,y) = result
+	if x > 18 or x < 0 or y > 18 or y < 0:
+		print("OUT OF BOUND: " + ask)
+	if _lcs_board[y][x] == 0:
+		return 'E'
+	elif _lcs_board[y][x] == 1:
+		return 'B'
+	elif _lcs_board[y][x] == 2: 
+		return 'W'
+	elif _lcs_board[y][x] == 3:
+		return 'R'
+	print("ERROR in api, plz contact maintainance team")
+	exit(1)
 
 
-def _a_coor_to_num(coor):
+def _a_coor_to_num(coor): 
 	if not coor[0].isalpha() or not coor[1:].isnumeric() or coor[0] == 'I':
-		return "BADINPUT"
-	x = ord(coor[0]) - 65
+		return "BADINPUT" 
+	x = ord(coor[0]) - 65 
 	y = 19 - int(coor[1:])
 	if x > 8:
 		x = x - 1
 	return (x, y)
 
 
-def _coor_to_num(coor):
-	x1 = ord(coor[0]) - 65
-	y1 = 19 - int(coor[1:3])
-	x2 = ord(coor[4]) - 65
-	y2 = 19 - int (coor[5:7])
-	if x1 > 8:
-		x1 = x1 - 1
-	if x2 > 8:
-		x2 = x2 - 1
-	if x2 < 0 or x2 > 18 or y2 < 0 or y2 > 18 or x1 < 0 or x1 > 18 or y1 < 0 or y1 > 18:
-		print("ERROR: input out of bound " + coor)
-		exit(1)
-	return [x1, y1, x2, y2]
-
 def _print_board():
 	for row in _lcs_board:
 		print(row)
+
 
 def main():
 	_print_board()
@@ -123,5 +125,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
-

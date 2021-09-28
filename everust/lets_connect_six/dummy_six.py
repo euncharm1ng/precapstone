@@ -1,11 +1,9 @@
 from lets_connect_six import *
-import numpy
 import random
 
+dummy_board = [[0 for i in range(19)] for j in range(19)]
 dummy_home = -1
 dummy_away = -1
-
-dummy_board = numpy.zeros((19,19))
 
 def create_payload(x1, y1, x2, y2):
 	if x1 > 7: 
@@ -60,12 +58,12 @@ def dummy_coor_to_num(coor):
 
 
 def main():
-	global dummy_home
-	global dummy_away
-	global dummy_board
+	global dummy_home, dummy_away, dummy_board
 	ip = input("input ip: ")
 	port = int(input("input port number: "))
 	dummy_home = int(input("input 1 for black, 2 for white: "))
+	mode = input("input \"user\" for activating user mode: ")
+
 	if dummy_home == 1:
 		dummy_away = 2
 	elif dummy_home == 2:
@@ -85,26 +83,36 @@ def main():
 		y = 19 - int(red_stones[num_pos:num_pos+2])
 		dummy_board[y][x] = 3
 
-
-	if dummy_home == 1:
-		dummy_board[9][9] = dummy_home
-		away_move = draw_and_wait("K10")
-		[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
-		dummy_board[y1][x1] = dummy_away
-		dummy_board[y2][x2] = dummy_away
+	if mode == "user":
+		while 1:
+			coor = input("input coor")
+			away_move = draw_and_wait(coor.replace(" ", ""))
+			if away_move == "K10":
+				dummy_board[9][9] = dummy_away
+			else:
+				[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
+				dummy_board[y1][x1] = dummy_away
+				dummy_board[y2][x2] = dummy_away
+				for row in dummy_board:
+					print(row)
 	else:
-		away_move = draw_and_wait("")
-		if away_move != "K10":
-			print("not K10, it is " + away_move)
-			exit(1)
-		dummy_board[9][9] = dummy_away
-
-
-	while 1:
-		away_move = draw_and_wait(make_move())
-		[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
-		dummy_board[y1][x1] = dummy_away
-		dummy_board[y2][x2] = dummy_away
+		if dummy_home == 1:
+			dummy_board[9][9] = dummy_home
+			away_move = draw_and_wait("K10")
+			[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
+			dummy_board[y1][x1] = dummy_away
+			dummy_board[y2][x2] = dummy_away
+		else:
+			away_move = draw_and_wait("")
+			if away_move != "K10":
+				print("not K10, it is " + away_move)
+				exit(1)
+			dummy_board[9][9] = dummy_away
+		while 1:
+			away_move = draw_and_wait(make_move())
+			[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
+			dummy_board[y1][x1] = dummy_away
+			dummy_board[y2][x2] = dummy_away
 	
 if __name__ == "__main__":
 	main()
