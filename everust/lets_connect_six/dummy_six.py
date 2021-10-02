@@ -1,4 +1,4 @@
-from lets_connect_six import *
+from CONNSIX import lets_connect_six
 import random
 
 dummy_board = [[0 for i in range(19)] for j in range(19)]
@@ -27,6 +27,7 @@ def make_move():
 	while dummy_board[y1][x1] != 0:
 		x1 = random.randint(0, 18)
 		y1 = random.randint(0, 18)
+
 	dummy_board[y1][x1] = dummy_home
 		
 	x2 = random.randint(0, 18)
@@ -34,12 +35,13 @@ def make_move():
 	while dummy_board[y2][x2] != 0:
 		x2 = random.randint(0, 18)
 		y2 = random.randint(0, 18)
+
 	dummy_board[y2][x2] = dummy_home
 	
 	return create_payload(x1, 19 - y1, x2, 19 - y2)
 
 
-def dummy_coor_to_num(coor):
+def input_away_move(coor):
 	x1 = ord(coor[0]) - 65
 	y1 = 19 - int(coor[1:3])
 	x2 = ord(coor[4]) - 65
@@ -54,7 +56,9 @@ def dummy_coor_to_num(coor):
 		print("ERROR: input out of bound in " + coor)
 		exit(1)
 
-	return [x1, y1, x2, y2]
+	dummy_board[y1][x1] = dummy_away
+	dummy_board[y2][x2] = dummy_away
+	#return [x1, y1, x2, y2]
 
 
 def main():
@@ -68,10 +72,7 @@ def main():
 		dummy_away = 2
 	elif dummy_home == 2:
 		dummy_away = 1
-	else:
-		print("ERROR: input 1 or 2 for color!")
-		exit(1)
-	red_stones = connect('127.0.0.1', port, dummy_home)
+	red_stones = lets_connect_six.connect('127.0.0.1', port, dummy_home)
 	
 	looper = red_stones.count(':') + 1
 	for i in range(looper):
@@ -85,34 +86,29 @@ def main():
 
 	if mode == "user":
 		while 1:
-			coor = input("input coor")
-			away_move = draw_and_wait(coor.replace(" ", ""))
+			coor = input("input coor: ")
+			try:
+				away_move = lets_connect_six.draw_and_read(coor.replace(" ", ""))
+			except lets_connect_six.InputError:
+				print("this is how you handle exception")
+				exit(1)
 			if away_move == "K10":
 				dummy_board[9][9] = dummy_away
 			else:
-				[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
-				dummy_board[y1][x1] = dummy_away
-				dummy_board[y2][x2] = dummy_away
+				input_away_move(away_move)
 				for row in dummy_board:
 					print(row)
 	else:
 		if dummy_home == 1:
 			dummy_board[9][9] = dummy_home
-			away_move = draw_and_wait("K10")
-			[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
-			dummy_board[y1][x1] = dummy_away
-			dummy_board[y2][x2] = dummy_away
+			away_move = lets_connect_six.draw_and_read("K10")
+			input_away_move(away_move)
 		else:
-			away_move = draw_and_wait("")
-			if away_move != "K10":
-				print("not K10, it is " + away_move)
-				exit(1)
+			lets_connect_six.draw_and_read("")
 			dummy_board[9][9] = dummy_away
 		while 1:
-			away_move = draw_and_wait(make_move())
-			[x1, y1, x2, y2] = dummy_coor_to_num(away_move)
-			dummy_board[y1][x1] = dummy_away
-			dummy_board[y2][x2] = dummy_away
+			away_move = lets_connect_six.draw_and_read(make_move())
+			input_away_move(away_move)
 	
 if __name__ == "__main__":
 	main()
