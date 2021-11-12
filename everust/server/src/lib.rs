@@ -8,14 +8,30 @@ pub mod board_operation	{
 	pub const WHITE:i8 = 2;
 	pub const RED:i8 = 3;
 
-	pub struct Board{
+	pub struct Board
+	{
 		board:Vec<Vec<i8>>,
 	}
 
-	impl Board{
-		pub fn new() -> Board
+	impl Board
+	{
+		pub fn new(msg:&str) -> Board
 		{
-			Board{ board:vec![vec![EMPTY; BOARDSIZE]; BOARDSIZE], }
+			let mut ret = Board{ board:vec![vec![EMPTY; BOARDSIZE]; BOARDSIZE], };
+			if !msg.eq("") {
+				let coors = msg.split(':');
+				for a_coor in coors {
+					let mut x = a_coor.chars().nth(0).unwrap() as usize - 65;
+					if x > 8 { x -= 1; }
+					
+					let y = match &a_coor.to_string()[1..3].parse::<usize>() {
+						Ok(value) => { 19 - value },
+						Err(e) => { panic!("parse error");} //FIXME
+					};
+					ret.board[y][x] = RED;
+				}
+			}
+			ret
 		}
 
 		fn is_end(&self, x:usize, y:usize) -> bool
@@ -73,7 +89,7 @@ pub mod board_operation	{
 
 		fn is_valid(&self, x:usize, y:usize) -> bool
 		{
-			if self.board[y][x] != 0
+			if self.board[y][x] != EMPTY
 				{ return false; }
 			else
 				{ return true; }
@@ -82,16 +98,16 @@ pub mod board_operation	{
 		fn place_stone(&mut self, color:i8, x:usize, y:usize)
 		{ self.board[y][x] = color; }
 
-		pub fn is_k10(&self, msg:&str) -> bool
-		{
-			if msg.eq("K10") { return true; }
-			else { return false; }
-		}
 
 		pub fn print_board(&self)
 		{
 			for row in &self.board{
-				for stone in row { print!("{} ", stone); }
+				for stone in row { 
+					if *stone == BLACK { print!("\x1b[34mo \x1b[37m");}
+					else if *stone == WHITE { print!("o ");}
+					else if *stone == EMPTY { print!("\x1b[33m+ \x1b[37m");}
+					else if *stone == RED { print!("\x1b[31mo \x1b[37m");}
+				}
 				println!("");
 			}
 		}
@@ -105,7 +121,7 @@ pub mod board_operation	{
 			self.place_stone(color, x1, y1);
 			if self.is_end(x1, y1) { return 3; } // the game ended
 
-			if self.is_k10(msg) == false {
+			if is_k10(msg) == false {
 				if self.is_valid(x2, y2) == false { return 2; } // invalid input
 				self.place_stone(color, x2, y2);
 				if self.is_end(x2, y2) { return 3; } // the game ended
@@ -113,7 +129,12 @@ pub mod board_operation	{
 
 			4 // FIXME
 		}
+	}
 
+	pub fn is_k10(&self, msg:&str) -> bool
+	{
+		if msg.eq("K10") { return true; }
+		else { return false; }
 	}
 
 	fn is_coor_msg(msg:&str) -> bool
@@ -124,7 +145,7 @@ pub mod board_operation	{
 
 	fn parse(msg:&str) -> ((usize, usize), (usize, usize))
 	{
-		let mut coors = msg.split(':');
+		let coors = msg.split(':');
 		let mut myvec:Vec<usize> = vec![];
 		for (cnt, a_coor) in coors.enumerate(){
 			//println!("{} {}", cnt, a_coor);
