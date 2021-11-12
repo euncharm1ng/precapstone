@@ -7,4 +7,19 @@ fn main() {
 	//println!("{} {}, {} {}", x1, y1, x2, y2);
 
 	println!("check and forward {}", myboard.check_and_forward("A01:B02", BLACK));
+	/*
+	myboard.place_stone(BLACK, 9, 9);
+	if myboard.is_end(BLACK, 9, 9) { println!("won"); }
+	myboard.place_stone(BLACK, 8, 10);
+	if myboard.is_end(BLACK, 8, 10) { println!("won"); }
+	myboard.place_stone(BLACK, 7, 11);
+	if myboard.is_end(BLACK, 7, 11) { println!("won"); }
+	myboard.place_stone(BLACK, 6, 12);
+	if myboard.is_end(BLACK, 6, 12) { println!("won"); }
+	myboard.place_stone(BLACK, 5, 13);
+	if myboard.is_end(BLACK, 5, 13) { println!("won"); }
+	myboard.place_stone(BLACK, 4, 14);
+	if myboard.is_end(BLACK, 4, 14) { println!("won"); }
+	myboard.print_board();
+	*/
 }
