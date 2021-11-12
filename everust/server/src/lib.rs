@@ -18,9 +18,10 @@ pub mod board_operation	{
 			Board{ board:vec![vec![EMPTY; BOARDSIZE]; BOARDSIZE], }
 		}
 
-		fn is_end(&self, color:i8, x:usize, y:usize) -> bool
+		fn is_end(&self, x:usize, y:usize) -> bool
 		{
 			let mut count = 0;
+			let color:i8 = self.board[y][x];
 			//horizontal
 			for j in (x..19){
 				if self.board[y][j] == color { count += 1; }
@@ -70,11 +71,9 @@ pub mod board_operation	{
 			else { return false; }
 		}
 
-		fn is_valid(&self, x1:usize, y1:usize, x2:usize, y2:usize) -> bool
+		fn is_valid(&self, x:usize, y:usize) -> bool
 		{
-			if self.board[y1][x1] != 0
-				{ return false; }
-			else if y2 != 31 && y2 != 31 && self.board[y2][x2] != 0 // for k10
+			if self.board[y][x] != 0
 				{ return false; }
 			else
 				{ return true; }
@@ -82,6 +81,12 @@ pub mod board_operation	{
 
 		fn place_stone(&mut self, color:i8, x:usize, y:usize)
 		{ self.board[y][x] = color; }
+
+		pub fn is_k10(&self, msg:&str) -> bool
+		{
+			if msg.eq("K10") { return true; }
+			else { return false; }
+		}
 
 		pub fn print_board(&self)
 		{
@@ -95,12 +100,16 @@ pub mod board_operation	{
 		{
 			if is_coor_msg(msg) == false { return 1; } // received error msg
 			let ((x1, y1), (x2, y2)) = parse(msg);
-			if self.is_valid(x1, y1, x2, y2) == false { return 2; } // invalid input
-
-			self.place_stone(x1, y1);
+			println!("{} {}, {} {}", x1, y1, x2, y2);
+			if self.is_valid(x1, y1) == false { return 2; } // invalid input
+			self.place_stone(color, x1, y1);
 			if self.is_end(x1, y1) { return 3; } // the game ended
-			self.place_stone(x2, y2);
-			if self.is_end(x2, y2) { return 3; } // the game ended
+
+			if self.is_k10(msg) == false {
+				if self.is_valid(x2, y2) == false { return 2; } // invalid input
+				self.place_stone(color, x2, y2);
+				if self.is_end(x2, y2) { return 3; } // the game ended
+			}
 
 			4 // FIXME
 		}
@@ -120,13 +129,14 @@ pub mod board_operation	{
 		for (cnt, a_coor) in coors.enumerate(){
 			//println!("{} {}", cnt, a_coor);
 			let mut alphabet = a_coor.chars().nth(0).unwrap() as usize - 65;
-			if alphabet > 8 { alphabet += 1; }
+			if alphabet > 8 { alphabet -= 1; }
 			myvec.push(alphabet);
 			myvec.push( match &a_coor.to_string()[1..3].parse::<usize>() {
 				Ok(value) => { 19 - value },
 				Err(e) => { panic!("parse error");} //FIXME
 			});
 		}
+		if myvec.len() == 2 { myvec.push(32); myvec.push(32); }
 		((myvec[0], myvec[1]), (myvec[2], myvec[3]))
 	}
 }

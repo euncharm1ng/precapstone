@@ -1,12 +1,13 @@
 use server::board_operation::*;
 fn main() {
 	let mut myboard = Board::new();
-	myboard.print_board();
+	//myboard.print_board();
 
 	//let ((x1, y1), (x2, y2)) = parse("A01:B02");
 	//println!("{} {}, {} {}", x1, y1, x2, y2);
 
-	println!("check and forward {}", myboard.check_and_forward("A01:B02", BLACK));
+	println!("check and forward {}", myboard.check_and_forward("K10", BLACK));
+	myboard.print_board();
 	/*
 	myboard.place_stone(BLACK, 9, 9);
 	if myboard.is_end(BLACK, 9, 9) { println!("won"); }
@@ -22,4 +23,5 @@ fn main() {
 	if myboard.is_end(BLACK, 4, 14) { println!("won"); }
 	myboard.print_board();
 	*/
+	//if myboard.is_k10("K11") { println!("k11!"); }
 }
